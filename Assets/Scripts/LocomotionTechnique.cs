@@ -96,6 +96,7 @@ public class LocomotionTechnique : MonoBehaviour
         // These are for the game mechanism.
         if (other.CompareTag("banner"))
         {
+            Debug.Log("FUCKFUCK");
             stage = other.gameObject.name;
             parkourCounter.isStageChange = true;
         }

@@ -14,18 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _movement: 1
   _matchOrientationOnEnter: 1
-  _deadzone: {x: 5, y: 5, z: 3}
+  _deadzone: {x: 10, y: 10, z: 6}
   _steps:
   - range: {x: 0, y: 0, z: 0}
     constantCoefficient: 1
     dynamicCoefficient: {x: 0, y: 0, z: 0}
-  - range: {x: 5, y: 5, z: 2}
-    constantCoefficient: 1
+  - range: {x: 5, y: 8, z: 2}
+    constantCoefficient: 1.5
     dynamicCoefficient: {x: 0.45, y: 0, z: 0.05}
-  - range: {x: 15, y: 9, z: 8}
-    constantCoefficient: 1.25
+  - range: {x: 15, y: 15, z: 8}
+    constantCoefficient: 2
     dynamicCoefficient: {x: 0.65, y: 0, z: 0.1}
   _centering: 1
+  _centeringStationary: 1
   _centeringDeadzoneAngle: 25
   _constantAggressivenessCoefficient: 1
   _dynamicAggressivenessCoefficient: 0.2

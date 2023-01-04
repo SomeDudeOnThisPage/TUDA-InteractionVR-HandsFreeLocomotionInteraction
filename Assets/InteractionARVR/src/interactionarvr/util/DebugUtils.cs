@@ -15,6 +15,7 @@ namespace me.buhlmann.study.ARVR.util {
       [NotNull] public string speed;
       [NotNull] public string step;
       [NotNull] public string return_to_center;
+      [NotNull] public string state;
     }
     
     public static void WriteDebugUI(DebugData data) {
@@ -26,7 +27,9 @@ namespace me.buhlmann.study.ARVR.util {
         }
 
         GameObject element = DebugUtils._cache[field.Name];
-        element.GetComponent<TextMeshPro>().SetText(field.GetValue(data).ToString());
+        if (element != null && element.GetComponent<TextMeshPro>() != null) {
+          element.GetComponent<TextMeshPro>().SetText(field.GetValue(data).ToString());
+        }
       }
     }
   }

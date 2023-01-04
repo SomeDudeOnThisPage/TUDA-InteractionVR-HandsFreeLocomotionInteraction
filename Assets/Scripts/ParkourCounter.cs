@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using me.buhlmann.study.ARVR;
 using UnityEngine;
 using TMPro;
 
 public class ParkourCounter : MonoBehaviour
 {
-    public LocomotionTechnique locomotionTech;
+    public Player locomotionTech;
     public bool isStageChange;
     // banners
     public GameObject startBanner;

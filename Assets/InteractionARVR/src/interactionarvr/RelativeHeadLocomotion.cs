@@ -10,9 +10,11 @@ namespace me.buhlmann.study.ARVR {
    */
   [CreateAssetMenu(menuName = "InteractionARVR/RelativeHeadLocomotion")]
   public class RelativeHeadLocomotion : AbstractPlayerPlugin {
-    private const int FORWARD = 0;
-    private const int SIDE = 1;
-    private const int BACKWARD = 2;
+    private enum _Direction : byte {
+      FORWARD = 0x00,
+      SIDE = 0x01,
+      BACKWARD = 0x02
+    }
 
     [System.Serializable]
     public struct IncrementStep {
@@ -33,8 +35,11 @@ namespace me.buhlmann.study.ARVR {
     }
 
     private struct _Coefficients {
-      public Vector3 constant;
-      public Vector3 dynamic;
+      public float constantZ;
+      public float dynamicZ;
+      
+      public float constantX;
+      public float dynamicX;
     }
     
     [SerializeField] private bool _movement;
@@ -48,25 +53,19 @@ namespace me.buhlmann.study.ARVR {
     
     [Header("Centering")]
     [SerializeField] private bool _centering;
-    
+    [SerializeField] private bool _centeringStationary;
+
     [SerializeField] private float _centeringDeadzoneAngle;
     [SerializeField] private float _constantAggressivenessCoefficient;
     [SerializeField] private float _dynamicAggressivenessCoefficient;
     
     private Vector3 _rotationPlayer;
-
+    private float _speed;
+    
     public override void Enter(Player player) {
-      if (!this._matchOrientationOnEnter) return;
-      
-      Vector3 camera = player.GetCamera().transform.forward.normalized;
-      camera.y = player.transform.forward.normalized.y;
-
-      Transform parent = player.GetOVRRig().transform.parent;
-      player.GetOVRRig().transform.parent = null;
-      player.transform.rotation = Quaternion.LookRotation(
-        Vector3.RotateTowards(player.transform.forward, camera, 1000.0f, 0.0f)
-      );
-      player.GetOVRRig().transform.parent = parent;
+      if (this._matchOrientationOnEnter) {
+        MathUtils.CenterPlayerOnViewDirection(player);
+      }
     }
 
     public override PlayerState GetPlayerState() {
@@ -84,8 +83,13 @@ namespace me.buhlmann.study.ARVR {
       Debug.DrawRay(player.transform.position, player.transform.forward.normalized * 5.0f, Color.blue, 0.0f);
 #endif
 
-      float speed = coefficients.constant[FORWARD] * this._constantAggressivenessCoefficient 
-                  + coefficients.dynamic[FORWARD] * this._dynamicAggressivenessCoefficient;
+      float speed = coefficients.constantZ * this._constantAggressivenessCoefficient
+                    + coefficients.dynamicZ * this._dynamicAggressivenessCoefficient;
+
+      if (speed == 0.0f && this._centeringStationary) {
+        speed = this._constantAggressivenessCoefficient;
+      }
+      
       // Rotate the Player object slowly towards the camera direction.
       // This forces the user to rotate their head the other direction, if they want to stay on their target.
       if (Vector3.Angle(player.transform.forward, camera) >= this._centeringDeadzoneAngle) {
@@ -94,36 +98,27 @@ namespace me.buhlmann.study.ARVR {
         );
       }
     }
-    
+
     /**
      * Returns the constant and dynamic ramp up coefficients for each axis based on the current rotation.
      */
     private RelativeHeadLocomotion._Coefficients GetCoefficients(Vector3 rotation) {
       RelativeHeadLocomotion._Coefficients coefficients = new RelativeHeadLocomotion._Coefficients();
-
-      // front
-      if (rotation.x < 0) {
-        foreach (var step in this._steps) { // head tilted forward on x-axis
-          if (!(step.range[FORWARD] <= Math.Abs(rotation.x))) continue;
-          coefficients.constant[FORWARD] = step.constantCoefficient;
-          // use the forward coefficient
-          coefficients.dynamic[FORWARD] = step.dynamicCoefficient[FORWARD];
-        }
+      RelativeHeadLocomotion._Direction index = rotation.z > 0
+        ? RelativeHeadLocomotion._Direction.FORWARD
+        : RelativeHeadLocomotion._Direction.BACKWARD;
+      
+      foreach (var step in this._steps) {
+        // coefficients := [front, sides, back]
+        if (!(step.range[(byte) index] <= Math.Abs(rotation.z))) continue;
+        coefficients.constantZ = step.constantCoefficient * Math.Sign(rotation.z);
+        coefficients.dynamicZ = step.dynamicCoefficient[(byte) index];
       }
-      else if (rotation.x > 0) { // head tilted back on x-axis
-        foreach (var step in this._steps) {
-          // coefficients := [front, sides, back]
-          if (!(step.range[BACKWARD] <= Math.Abs(rotation.x))) continue;
-          // we have to invert the constant coefficient based on angle
-          // dynamic is always based on angle, so can be ignored!
-          coefficients.constant[FORWARD] = -step.constantCoefficient;
-          // use the backward coefficient
-          coefficients.dynamic[FORWARD] = step.dynamicCoefficient[BACKWARD];
-        }
-      }
-      else {
-        coefficients.constant[0] = 0.0f;
-        coefficients.dynamic[0] = 0.0f;
+      
+      foreach (var step in this._steps) { // head tilted on the x-Axis
+        if (!(step.range[(byte) RelativeHeadLocomotion._Direction.SIDE] <= Math.Abs(rotation.x))) continue;
+        coefficients.constantX = step.constantCoefficient * Math.Sign(rotation.x);
+        coefficients.dynamicX = step.dynamicCoefficient[(byte) RelativeHeadLocomotion._Direction.SIDE];
       }
 
       return coefficients;
@@ -134,15 +129,47 @@ namespace me.buhlmann.study.ARVR {
       Vector3 rotation = player.GetCamera().transform.rotation.eulerAngles;
       Vector3 normalized = MathUtils.NormalizeHMDAngles(rotation, this._deadzone);
       RelativeHeadLocomotion._Coefficients coefficients = this.GetCoefficients(normalized);
-      
-      debug.step = $"Coefficients: [x: [{coefficients.constant.x:n2},{coefficients.dynamic.x:n2}], " +
-                   $"y: [{coefficients.constant.y:n2},{coefficients.dynamic.y:n2}], " +
-                   $"z: [{coefficients.constant.z:n2},{coefficients.dynamic.z:n2}]]";
+
+      debug.step = $"Coefficients: [z (fwd/bck): [{coefficients.constantZ:n2},{coefficients.dynamicZ:n2}], " +
+                   $"x (sides): [{coefficients.constantX:n2},{coefficients.dynamicX:n2}]";
       debug.angle_normalized = $"Normalized: [x = {normalized.x:n2}, y = {normalized.y:n2}, z = {normalized.z:n2}]";
 
+      Vector3 scale = new Vector3(
+        normalized.x * coefficients.dynamicX + coefficients.constantX,
+        0.0f,
+        normalized.z * coefficients.dynamicZ + coefficients.constantZ
+      );
+
+      //camera forward and right vectors:
+      var forward = player.GetCamera().transform.forward;
+      var right = player.GetCamera().transform.right;
+ 
+      //project forward and right vectors on the horizontal plane (y = 0)
+      forward.y = 0f;
+      // right.y = 0f;
+      forward.Normalize();
+      right.Normalize();
+
+      var move = forward * scale.z + right * scale.x;
+      move.y = 0.0f;
+      debug.speed = $"Speed: [x: {move.x}, y: {move.y}, z: {move.z}, total: {move.magnitude}] -> /dt";
+      
       Vector3 camera = player.GetCamera().transform.forward.normalized;
       camera.y = player.transform.forward.normalized.y;
       debug.return_to_center = $"RTC Angle: {Vector3.Angle(player.transform.forward, camera)}";
+      
+      // Deadzone FWD
+      Debug.DrawRay(player.transform.position, Quaternion.AngleAxis(-this._deadzone.y, Vector3.up) * camera * 5.0f, Color.green, 0.0f);
+      Debug.DrawRay(player.transform.position, Quaternion.AngleAxis(this._deadzone.y, Vector3.up) * camera * 5.0f, Color.green, 0.0f);
+      
+      // FWD
+      Debug.DrawRay(player.transform.position, player.transform.forward.normalized * 5.0f, Color.blue, 0.0f);
+
+      Vector3 cameral = -player.GetCamera().transform.right.normalized;
+      // Deadzone LEFT
+      Debug.DrawRay(player.transform.position, Quaternion.AngleAxis(-this._deadzone.x, Vector3.forward) * cameral * 5.0f, Color.green, 0.0f);
+      Debug.DrawRay(player.transform.position, Quaternion.AngleAxis(this._deadzone.x, Vector3.forward) * cameral * 5.0f, Color.green, 0.0f);
+      Debug.DrawRay(player.transform.position, -player.transform.right.normalized * 5.0f, Color.blue, 0.0f);
     }
 #endif
     
@@ -152,9 +179,9 @@ namespace me.buhlmann.study.ARVR {
       RelativeHeadLocomotion._Coefficients coefficients = this.GetCoefficients(normalized);
       
       Vector3 scale = new Vector3(
-        normalized.z * coefficients.dynamic.z * Time.deltaTime + coefficients.constant.z * Time.deltaTime,
+        normalized.x * coefficients.dynamicX * Time.deltaTime + coefficients.constantX * Time.deltaTime,
         0.0f,
-        -normalized.x * coefficients.dynamic.x * Time.deltaTime + coefficients.constant.x * Time.deltaTime
+        normalized.z * coefficients.dynamicZ * Time.deltaTime + coefficients.constantZ * Time.deltaTime
       );
 
       //camera forward and right vectors:
@@ -163,14 +190,18 @@ namespace me.buhlmann.study.ARVR {
  
       //project forward and right vectors on the horizontal plane (y = 0)
       forward.y = 0f;
-      right.y = 0f;
+      // right.y = 0f;
       forward.Normalize();
       right.Normalize();
 
-      var desiredMoveDirection = forward * scale.z + right * scale.x;
-      desiredMoveDirection.y = -9.8f * Time.deltaTime;
+      var move = forward * scale.z + right * scale.x;
+      move.y = -9.8f * Time.deltaTime;
       if (this._movement) {
-        player.controller.Move(desiredMoveDirection);
+        player.controller.Move(move);
+
+        // set speed value without gravity constant
+        move.y = 0.0f;
+        this._speed = move.magnitude;
       }
 
       if (this._centering) {
