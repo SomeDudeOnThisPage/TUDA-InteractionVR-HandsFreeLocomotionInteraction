@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
-  productName: VRParkour
+  companyName: CoolCompany
+  productName: HandsFreeVR
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -135,7 +135,10 @@ PlayerSettings:
     16:9: 1
     Others: 1
   bundleVersion: 0.1
-  preloadedAssets: []
+  preloadedAssets:
+  - {fileID: 5732233944531814200, guid: 3090b4c43d5538341bc42691eed1689d, type: 2}
+  - {fileID: -23687297352731625, guid: d4d075abc73c05849bc966fc4a64228d, type: 2}
+  - {fileID: 11400000, guid: 853b3cf7745111f44a5a7e2c23b991d2, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -155,7 +158,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.DefaultCompany.VRParkour
+    Android: com.CoolCompany.HandsFreeVR
     Standalone: com.DefaultCompany.VRParkour
   buildNumber:
     Standalone: 0

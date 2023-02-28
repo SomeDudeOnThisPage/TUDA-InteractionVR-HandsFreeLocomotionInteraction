@@ -8,9 +8,10 @@ namespace me.buhlmann.study.ARVR {
     protected Player _player;
 
     public abstract GameObject GetInteractable();
-    public virtual void Update() {}
+    public virtual void Update(OVRInput.Controller[] controllers) {}
     public virtual void FixedUpdate() {}
-    
+
+
 #if DEBUG
     public virtual void UpdateDebug(DebugUtils.DebugData debug) {}
 #endif

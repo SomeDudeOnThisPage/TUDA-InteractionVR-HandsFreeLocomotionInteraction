@@ -51,7 +51,7 @@ namespace me.buhlmann.study.ARVR {
     }
     
     public void Update() {
-      this._manager.Update();
+      this._manager.Update(this._controllers);
       // bool lb = OVRInput.Get(OVRInput.Button.Any, this._controllers[0]); 
       // bool rb = OVRInput.Get(OVRInput.Button.Any, this._controllers[0]);
       

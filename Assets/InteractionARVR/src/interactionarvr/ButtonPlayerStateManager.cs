@@ -21,10 +21,12 @@ namespace me.buhlmann.study.ARVR {
       debug.state = this._current.ToString();
     }
 #endif
-    
-    public override void Update() {
+
+    public override void Update(OVRInput.Controller[] controllers) {
       this._counter.Update();
-      if (Input.GetMouseButtonDown(0)) {
+      bool lb = OVRInput.GetDown(OVRInput.Button.One);
+      bool rb = OVRInput.GetDown(OVRInput.Button.One);
+      if (Input.GetMouseButtonDown(0) || lb || rb) {
         this._counter.OnInput();
       }
 
